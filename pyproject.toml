@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "pomodoro-timer"
+version = "0.1.0"
+description = "Python implementation of a pomodoro timer"
+authors = ["James Santos-Calacat"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pyobjc = "10.1"
+simpleaudio = "^1.0.4"
+pynput = "^1.7.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
