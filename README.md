@@ -3,7 +3,7 @@
 ## Features
 
 - configurable pomodoro timer
-- ability to pause the timer and continue using the Spacebar
+- ability to pause the timer and continue using the F1 key
 - 3 modes with 3 different sounds when complete: break, work, and journal
 
 ## Development
@@ -22,6 +22,7 @@ poetry run python pomodoro_timer.py --d 5 --t j # 5 minute journal session
 
 ## Links
 * [freesound.org - where I get my wav files](https://freesound.org/)
+* [List of available keyboard keys](https://github.com/moses-palmer/pynput/blob/master/lib/pynput/keyboard/_darwin.py#L155)
 
 ## TODOs
 * Add proper logging

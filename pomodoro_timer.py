@@ -18,7 +18,9 @@ def update_progress_bar(progress, total, bar_length=50):
 
 def on_press(key):
     global paused
-    if key == keyboard.Key.space:
+    # list of keys can be found
+    # https://github.com/moses-palmer/pynput/blob/master/lib/pynput/keyboard/_darwin.py#L155
+    if key == keyboard.Key.f1:
         paused = not paused
         if paused:
             print("\nPaused. Press spacebar to resume.")
