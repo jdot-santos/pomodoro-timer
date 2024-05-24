@@ -1,9 +1,9 @@
 import argparse
 import logging
-import time
 import sys
-import simpleaudio as sa
+import time
 
+import simpleaudio as sa
 from pynput import keyboard
 
 paused = False
@@ -17,9 +17,12 @@ logger.addHandler(stream_handler)
 
 def update_progress_bar(progress, total, bar_length=50):
     fraction = progress / total
-    arrow = int(fraction * bar_length - 1) * '#' + '>'
-    padding = (bar_length - len(arrow)) * ' '
-    message = f"\rProgress: [{'#' * int(fraction * bar_length)}{padding}] {int(fraction * 100)}%"
+    arrow = int(fraction * bar_length - 1) * "#" + ">"
+    padding = (bar_length - len(arrow)) * " "
+    message = (
+        f"\rProgress: [{'#' * int(fraction * bar_length)}{padding}] "
+        f"{int(fraction * 100)}%"
+    )
     sys.stdout.write(message)
     sys.stdout.flush()
 
@@ -57,7 +60,7 @@ def run_pomodoro(duration, timer_type):
             logger.info("\nJournaling complete\n")
     except KeyboardInterrupt:
         listener.stop()
-        logger.error('\nPomodoro interrupted.\n')
+        logger.error("\nPomodoro interrupted.\n")
         raise SystemExit(0)
 
 
@@ -87,9 +90,19 @@ def main():
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pomodoro Timer")
-    parser.add_argument('--duration', '--d', type=int, help='Duration of the Pomodoro session in minutes')
-    parser.add_argument('--type', '--t', type=str, choices=["work", "w", "break", "b", "journal", "j"],
-                        help='Type of timer. Options are "work" or "break"')
+    parser.add_argument(
+        "--duration",
+        "--d",
+        type=int,
+        help="Duration of the Pomodoro session in minutes",
+    )
+    parser.add_argument(
+        "--type",
+        "--t",
+        type=str,
+        choices=["work", "w", "break", "b", "journal", "j"],
+        help='Type of timer. Options are "work" or "break"',
+    )
     args = parser.parse_args()
     return args
 
