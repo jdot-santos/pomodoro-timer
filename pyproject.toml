@@ -11,6 +11,9 @@ pyobjc = "10.1"
 simpleaudio = "^1.0.4"
 pynput = "^1.7.7"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.1"
+pre-commit = "^3.4.0"
 
 [build-system]
 requires = ["poetry-core"]

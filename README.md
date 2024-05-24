@@ -25,6 +25,5 @@ poetry run python pomodoro_timer.py --d 5 --t j # 5 minute journal session
 * [List of available keyboard keys](https://github.com/moses-palmer/pynput/blob/master/lib/pynput/keyboard/_darwin.py#L155)
 
 ## TODOs
-* Add proper logging
 * Add unit tests
 * Add pre-commit
