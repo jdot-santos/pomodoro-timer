@@ -18,6 +18,7 @@ poetry shell # once in shell, you can run your normal python commands
 poetry run python pomodoro_timer.py --d 25 --t work # if not in shell, then run poetry like so
 poetry run python pomodoro_timer.py --d 5 --t b # 5 minute break
 poetry run python pomodoro_timer.py --d 5 --t j # 5 minute journal session
+poetry run pre-commit run --all-files
 ```
 
 ## Links
@@ -26,4 +27,3 @@ poetry run python pomodoro_timer.py --d 5 --t j # 5 minute journal session
 
 ## TODOs
 * Add unit tests
-* Add pre-commit
