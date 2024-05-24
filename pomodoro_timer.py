@@ -1,4 +1,5 @@
 import argparse
+import logging
 import time
 import sys
 import simpleaudio as sa
@@ -6,13 +7,20 @@ import simpleaudio as sa
 from pynput import keyboard
 
 paused = False
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+stream_handler = logging.StreamHandler(sys.stdout)
+
+# Set a formatter that does not add a newline character
+logger.addHandler(stream_handler)
 
 
 def update_progress_bar(progress, total, bar_length=50):
     fraction = progress / total
     arrow = int(fraction * bar_length - 1) * '#' + '>'
     padding = (bar_length - len(arrow)) * ' '
-    sys.stdout.write(f"\rProgress: [{'#' * int(fraction * bar_length)}{padding}] {int(fraction * 100)}%")
+    message = f"\rProgress: [{'#' * int(fraction * bar_length)}{padding}] {int(fraction * 100)}%"
+    sys.stdout.write(message)
     sys.stdout.flush()
 
 
@@ -23,9 +31,9 @@ def on_press(key):
     if key == keyboard.Key.f1:
         paused = not paused
         if paused:
-            print("\nPaused. Press spacebar to resume.")
+            logger.info("\nPaused. Press spacebar to resume.")
         else:
-            print("\nResumed, grind on!")
+            logger.info("\nResumed, grind on!")
 
 
 def run_pomodoro(duration, timer_type):
@@ -42,15 +50,15 @@ def run_pomodoro(duration, timer_type):
         listener.stop()
 
         if timer_type == "work" or timer_type == "w":
-            sys.stdout.write("\nTime's up! Take a break.\n")
+            logger.info("\nTime's up! Take a break.\n")
         elif timer_type == "break" or timer_type == "b":
-            sys.stdout.write("\nBreak is over, get back to work!\n")
+            logger.info("\nBreak is over, get back to work!\n")
         elif timer_type == "journal" or timer_type == "j":
-            sys.stdout.write("\nJournaling complete\n")
+            logger.info("\nJournaling complete\n")
     except KeyboardInterrupt:
         listener.stop()
-        sys.stdout.write('\nPomodoro interrupted.\n')
-        sys.exit(0)
+        logger.error('\nPomodoro interrupted.\n')
+        raise SystemExit(0)
 
 
 def play_completed_sound(timer_type):
@@ -61,8 +69,9 @@ def play_completed_sound(timer_type):
     elif timer_type == "journal" or timer_type == "j":
         filename = "gong-with-flute.wav"
     else:
-        sys.stdout.write("Unknown type used, will not play a sound")
-        sys.exit(0)
+        logger.error("Unknown type used, will not play a sound")
+        raise SystemExit(0)
+
     wave_obj = sa.WaveObject.from_wave_file(filename)
 
     play_obj = wave_obj.play()
@@ -71,7 +80,7 @@ def play_completed_sound(timer_type):
 
 def main():
     args = get_arguments()
-    print(f"Starting Pomodoro for {args.duration} minutes.")
+    logger.info(f"Starting Pomodoro for {args.duration} minutes.")
     run_pomodoro(args.duration, args.type)
     play_completed_sound(args.type)
 
