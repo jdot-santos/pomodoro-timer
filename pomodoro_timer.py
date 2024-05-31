@@ -34,7 +34,7 @@ def on_press(key):
     if key == keyboard.Key.f1:
         paused = not paused
         if paused:
-            logger.info("\nPaused. Press spacebar to resume.")
+            logger.info("\nPaused. Press F1 to resume.")
         else:
             logger.info("\nResumed, grind on!")
 
