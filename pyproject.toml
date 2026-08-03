@@ -15,6 +15,9 @@ pynput = "^1.7.7"
 pytest = "^7.4.1"
 pre-commit = "^3.4.0"
 
+[tool.poetry.scripts]
+pomodoro-timer = "pomodoro_timer:main"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

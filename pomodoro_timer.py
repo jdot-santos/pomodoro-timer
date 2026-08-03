@@ -94,6 +94,7 @@ def get_arguments():
         "--duration",
         "--d",
         type=int,
+        required=True,
         help="Duration of the Pomodoro session in minutes",
     )
     parser.add_argument(
@@ -101,6 +102,7 @@ def get_arguments():
         "--t",
         type=str,
         choices=["work", "w", "break", "b", "journal", "j"],
+        required=True,
         help='Type of timer. Options are "work" or "break"',
     )
     args = parser.parse_args()
