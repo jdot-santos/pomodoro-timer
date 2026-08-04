@@ -1,10 +1,13 @@
 import argparse
 import logging
+import pathlib
 import sys
 import time
 
 import simpleaudio as sa
 from pynput import keyboard
+
+BASE_DIR = pathlib.Path(__file__).resolve().parent
 
 paused = False
 logger = logging.getLogger(__name__)
@@ -75,7 +78,7 @@ def play_completed_sound(timer_type):
         logger.error("Unknown type used, will not play a sound")
         raise SystemExit(0)
 
-    wave_obj = sa.WaveObject.from_wave_file(filename)
+    wave_obj = sa.WaveObject.from_wave_file(str(BASE_DIR / filename))
 
     play_obj = wave_obj.play()
     play_obj.wait_done()  # Wait until sound has finished playing
