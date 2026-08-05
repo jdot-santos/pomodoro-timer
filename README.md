@@ -25,4 +25,11 @@ poetry run pre-commit run --all-files
 * [List of available keyboard keys](https://github.com/moses-palmer/pynput/blob/master/lib/pynput/keyboard/_darwin.py#L155)
 
 ## TODOs
-* Add unit tests
+* Add a CI pipeline (e.g. GitHub Actions) that runs on PRs: pytest, pre-commit
+  (black/mypy/flake8/isort), and any other checks a PR should gate on
+* Package the `.wav` files as real package data (`pyproject.toml` include +
+  `importlib.resources`) so `pip install` works from outside a repo checkout,
+  not just an editable install run from the repo root
+* Add real end-to-end audio verification (manual QA checklist or automated
+  smoke test) — every automated test stubs `simpleaudio.WaveObject`, so no
+  test actually confirms a `.wav` file plays correctly
