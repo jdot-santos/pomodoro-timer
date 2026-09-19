@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # ⚠️ "ci" is the required status check on main.
+    # Renaming this blocks every PR until branch protection is updated to match.
+    # Adding a matrix also renames it — "ci" becomes "ci (3.12)".
+    name: ci
+    # macOS, not Ubuntu: pyobjc is a macOS-only dependency and `poetry install`
+    # fails outright on Linux. Free on public repos.
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      # Runs pre-commit rather than ruff and mypy directly, so
+      # .pre-commit-config.yaml stays the single source of tool versions.
+      - name: Lint and type check
+        run: poetry run pre-commit run --all-files
+
+      - name: Tests
+        run: poetry run pytest -q
