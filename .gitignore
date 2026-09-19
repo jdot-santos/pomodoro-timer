@@ -160,6 +160,6 @@ cython_debug/
 .idea/
 
 
-# Self generated documentation
+# Self generated documentation (orientation notes, not part of the codebase)
 ONBOARDING.md
-docs/specs/
+CODEBASE-NOTES.md
