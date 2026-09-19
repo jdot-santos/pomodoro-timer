@@ -17,6 +17,8 @@ jobs:
     # macOS, not Ubuntu: pyobjc is a macOS-only dependency and `poetry install`
     # fails outright on Linux. Free on public repos.
     runs-on: macos-latest
+    # A hung install or test otherwise burns a runner for GitHub's 6-hour default.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -25,8 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Pinned deliberately. Everything else in the chain is pinned — hook
+      # versions in .pre-commit-config.yaml, app deps in poetry.lock — so an
+      # unpinned Poetry was the one way CI could break with no code change.
       - name: Install Poetry
-        run: pipx install poetry
+        run: pipx install poetry==2.4.3
 
       - name: Install dependencies
         run: poetry install
