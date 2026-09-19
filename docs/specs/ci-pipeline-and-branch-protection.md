@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-09-18
 ---
 
@@ -24,7 +24,7 @@ Three triggers, none of them a function call:
 ## Outputs
 
 - A required status check on every PR that must pass before merge
-- `main` rejects direct pushes; changes land only through a PR
+- `main` rejects direct pushes **from non-admins**; changes land through a PR. See Branch protection for why the owner is exempt and what that actually permits.
 - One lint toolchain (Ruff) replacing three (black, flake8, isort)
 - mypy configured rather than running permissive defaults
 - A documented `pre-commit install` step for fresh clones
@@ -84,6 +84,21 @@ One job, explicitly `name: ci`. That string is the required status check on `mai
 Require a PR and a passing CI check. Zero required approvals, admins exempt.
 
 Zero approvals because there is one contributor — requiring one would make `main` unmergeable. Admins exempt so a red check cannot lock the only maintainer out of fixing whatever made it red.
+
+**What "admins exempt" actually permits, verified by testing it 2026-09-18:** the repo owner bypasses the protection rule entirely, including pushing directly to `main` with no PR and no CI run. GitHub prints the rejection reasons and allows the push anyway. This is broader than "can override a red check" — it is a full bypass, and it is the accepted cost of keeping an escape hatch on a single-maintainer repo.
+
+**Force-pushing is blocked regardless.** `allow_force_pushes` is a separate setting from `enforce_admins`, and it applies to the owner too. History on `main` cannot be rewritten by anyone without first changing that setting. Branch deletion is blocked on the same basis.
+
+Applied state, confirmed via the API:
+
+```
+required checks : ci        (only — not the dynamic update-pip-graph context)
+strict          : true
+approvals       : 0
+enforce_admins  : false
+force_pushes    : false
+deletions       : false
+```
 
 ## Tooling decisions
 
@@ -157,7 +172,7 @@ There are no new pytest tests. Every part of this spec is verified by the toolch
 | Ruff migration | `pre-commit run --all-files` passes |
 | mypy config and annotations | mypy passes; the existing 17 tests prove runtime behavior is unchanged |
 | CI workflow | CI observed green on its own PR |
-| Branch protection | A direct push to `main` is rejected |
+| Branch protection | A direct push to `main` is rejected for non-admins. *Outcome: verified 2026-09-18 — the owner's push succeeded, because `enforce_admins` is false. The rule is live and correct; the exemption is doing what it was configured to do.* |
 
 A test asserting that a config file contains a config value tests the file, not behavior. The exception is the failure mode above: a real type error found during annotation gets a real test.
 
