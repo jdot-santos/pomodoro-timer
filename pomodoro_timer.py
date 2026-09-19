@@ -3,6 +3,7 @@ import logging
 import pathlib
 import sys
 import time
+from typing import Any
 
 import simpleaudio as sa
 from pynput import keyboard
@@ -18,7 +19,7 @@ stream_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(stream_handler)
 
 
-def update_progress_bar(progress, total, bar_length=50):
+def update_progress_bar(progress: int, total: int, bar_length: int = 50) -> None:
     fraction = progress / total
     filled = int(fraction * bar_length)
     padding = (bar_length - filled) * " "
@@ -27,7 +28,7 @@ def update_progress_bar(progress, total, bar_length=50):
     sys.stdout.flush()
 
 
-def on_press(key):
+def on_press(key: Any) -> None:
     global paused
     # list of keys can be found
     # https://github.com/moses-palmer/pynput/blob/master/lib/pynput/keyboard/_darwin.py#L155
@@ -39,7 +40,7 @@ def on_press(key):
             logger.info("\nResumed, grind on!")
 
 
-def run_pomodoro(duration, timer_type):
+def run_pomodoro(duration: int, timer_type: str) -> None:
     total_seconds = duration * 60
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
@@ -61,10 +62,10 @@ def run_pomodoro(duration, timer_type):
     except KeyboardInterrupt:
         listener.stop()
         logger.error("\nPomodoro interrupted.\n")
-        raise SystemExit(0)
+        raise SystemExit(0) from None
 
 
-def play_completed_sound(timer_type):
+def play_completed_sound(timer_type: str) -> None:
     if timer_type == "work" or timer_type == "w":
         filename = "loopdilla-drum-loop.wav"
     elif timer_type == "break" or timer_type == "b":
@@ -81,14 +82,14 @@ def play_completed_sound(timer_type):
     play_obj.wait_done()  # Wait until sound has finished playing
 
 
-def main():
+def main() -> None:
     args = get_arguments()
     logger.info(f"Starting Pomodoro for {args.duration} minutes.")
     run_pomodoro(args.duration, args.type)
     play_completed_sound(args.type)
 
 
-def get_arguments():
+def get_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Pomodoro Timer")
     parser.add_argument(
         "--duration",

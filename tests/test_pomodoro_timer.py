@@ -26,7 +26,9 @@ import pomodoro_timer
 
 
 class TestUpdateProgressBar:
-    def test_mid_progress_renders_partial_bar_and_percent(self, capsys):
+    def test_mid_progress_renders_partial_bar_and_percent(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         pomodoro_timer.update_progress_bar(progress=25, total=100)
 
         captured = capsys.readouterr()
@@ -35,7 +37,9 @@ class TestUpdateProgressBar:
             == "\rProgress: [############                                      ] 25%"
         )
 
-    def test_full_progress_renders_completely_filled_bar(self, capsys):
+    def test_full_progress_renders_completely_filled_bar(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         pomodoro_timer.update_progress_bar(progress=100, total=100)
 
         captured = capsys.readouterr()
@@ -44,7 +48,9 @@ class TestUpdateProgressBar:
             == "\rProgress: [##################################################] 100%"
         )
 
-    def test_zero_progress_renders_empty_bar(self, capsys):
+    def test_zero_progress_renders_empty_bar(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         pomodoro_timer.update_progress_bar(progress=0, total=100)
 
         captured = capsys.readouterr()
@@ -55,7 +61,9 @@ class TestUpdateProgressBar:
 
 
 class TestGetArguments:
-    def test_long_form_flags_parse_work_session(self, monkeypatch):
+    def test_long_form_flags_parse_work_session(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(
             "sys.argv", ["pomodoro-timer", "--duration", "25", "--type", "work"]
         )
@@ -65,7 +73,9 @@ class TestGetArguments:
         assert args.duration == 25
         assert args.type == "work"
 
-    def test_short_form_flags_parse_break_session(self, monkeypatch):
+    def test_short_form_flags_parse_break_session(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr("sys.argv", ["pomodoro-timer", "--d", "5", "--t", "b"])
 
         args = pomodoro_timer.get_arguments()
@@ -75,7 +85,9 @@ class TestGetArguments:
 
 
 class TestRequiredArgumentValidation:
-    def test_missing_duration_exits_with_usage_error(self, monkeypatch, capsys):
+    def test_missing_duration_exits_with_usage_error(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         monkeypatch.setattr("sys.argv", ["pomodoro-timer", "--type", "work"])
 
         with pytest.raises(SystemExit) as exc_info:
@@ -84,7 +96,9 @@ class TestRequiredArgumentValidation:
         assert exc_info.value.code == 2
         assert "--duration" in capsys.readouterr().err
 
-    def test_missing_type_exits_with_usage_error(self, monkeypatch, capsys):
+    def test_missing_type_exits_with_usage_error(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         monkeypatch.setattr("sys.argv", ["pomodoro-timer", "--duration", "25"])
 
         with pytest.raises(SystemExit) as exc_info:
@@ -94,8 +108,8 @@ class TestRequiredArgumentValidation:
         assert "--type" in capsys.readouterr().err
 
     def test_missing_both_required_args_exits_with_usage_error(
-        self, monkeypatch, capsys
-    ):
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         monkeypatch.setattr("sys.argv", ["pomodoro-timer"])
 
         with pytest.raises(SystemExit) as exc_info:
@@ -108,7 +122,9 @@ class TestRequiredArgumentValidation:
 
 
 class TestArgumentTypeValidation:
-    def test_non_integer_duration_exits_with_usage_error(self, monkeypatch, capsys):
+    def test_non_integer_duration_exits_with_usage_error(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         monkeypatch.setattr(
             "sys.argv", ["pomodoro-timer", "--duration", "abc", "--type", "work"]
         )
@@ -120,22 +136,22 @@ class TestArgumentTypeValidation:
         assert "--duration" in capsys.readouterr().err
 
 
-def _stub_from_wave_file(monkeypatch):
+def _stub_from_wave_file(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Replace sa.WaveObject.from_wave_file with a no-op stub that records the
     path it was called with, instead of touching the real filesystem/audio
     device. Returns the list of recorded paths.
     """
-    recorded_paths = []
+    recorded_paths: list[str] = []
 
     class _StubPlayObject:
-        def wait_done(self):
+        def wait_done(self) -> None:
             pass
 
     class _StubWaveObject:
-        def play(self):
+        def play(self) -> "_StubPlayObject":
             return _StubPlayObject()
 
-    def fake_from_wave_file(path):
+    def fake_from_wave_file(path: str) -> "_StubWaveObject":
         recorded_paths.append(path)
         return _StubWaveObject()
 
@@ -145,34 +161,42 @@ def _stub_from_wave_file(monkeypatch):
     return recorded_paths
 
 
-def _expected_wav_path(filename):
+def _expected_wav_path(filename: str) -> str:
     module_dir = pathlib.Path(pomodoro_timer.__file__).resolve().parent
     return str(module_dir / filename)
 
 
 class TestPlayCompletedSoundPathResolution:
-    def test_work_type_resolves_absolute_path_to_correct_wav(self, monkeypatch):
+    def test_work_type_resolves_absolute_path_to_correct_wav(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         recorded_paths = _stub_from_wave_file(monkeypatch)
 
         pomodoro_timer.play_completed_sound("work")
 
         assert recorded_paths == [_expected_wav_path("loopdilla-drum-loop.wav")]
 
-    def test_break_type_resolves_absolute_path_to_correct_wav(self, monkeypatch):
+    def test_break_type_resolves_absolute_path_to_correct_wav(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         recorded_paths = _stub_from_wave_file(monkeypatch)
 
         pomodoro_timer.play_completed_sound("break")
 
         assert recorded_paths == [_expected_wav_path("tabla_loop.wav")]
 
-    def test_journal_type_resolves_absolute_path_to_correct_wav(self, monkeypatch):
+    def test_journal_type_resolves_absolute_path_to_correct_wav(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         recorded_paths = _stub_from_wave_file(monkeypatch)
 
         pomodoro_timer.play_completed_sound("journal")
 
         assert recorded_paths == [_expected_wav_path("gong-with-flute.wav")]
 
-    def test_short_form_aliases_resolve_to_same_files_as_long_form(self, monkeypatch):
+    def test_short_form_aliases_resolve_to_same_files_as_long_form(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         recorded_paths = _stub_from_wave_file(monkeypatch)
 
         pomodoro_timer.play_completed_sound("w")
@@ -186,8 +210,8 @@ class TestPlayCompletedSoundPathResolution:
         ]
 
     def test_resolves_correct_path_regardless_of_current_working_directory(
-        self, monkeypatch, tmp_path
-    ):
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
         recorded_paths = _stub_from_wave_file(monkeypatch)
         monkeypatch.chdir(tmp_path)
 
@@ -198,8 +222,8 @@ class TestPlayCompletedSoundPathResolution:
 
 class TestPlayCompletedSoundUnknownType:
     def test_unknown_timer_type_logs_error_and_exits_without_playing_sound(
-        self, monkeypatch, caplog
-    ):
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         recorded_paths = _stub_from_wave_file(monkeypatch)
         caplog.set_level(logging.ERROR, logger="pomodoro_timer")
 
@@ -216,20 +240,20 @@ class _StubKeyboardListener:
     OS-level keyboard hook (which also needs macOS Accessibility permission).
     """
 
-    def __init__(self, on_press=None):
+    def __init__(self, on_press: object = None) -> None:
         self.on_press = on_press
 
-    def start(self):
+    def start(self) -> None:
         pass
 
-    def stop(self):
+    def stop(self) -> None:
         pass
 
 
 class TestMainEndToEnd:
     def test_main_wires_args_through_run_pomodoro_to_play_completed_sound(
-        self, monkeypatch
-    ):
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(
             "sys.argv", ["pomodoro-timer", "--duration", "0", "--type", "work"]
         )
@@ -240,7 +264,9 @@ class TestMainEndToEnd:
 
         assert recorded_paths == [_expected_wav_path("loopdilla-drum-loop.wav")]
 
-    def test_main_passes_break_type_through_to_correct_sound(self, monkeypatch):
+    def test_main_passes_break_type_through_to_correct_sound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr("sys.argv", ["pomodoro-timer", "--d", "0", "--t", "b"])
         monkeypatch.setattr(pomodoro_timer.keyboard, "Listener", _StubKeyboardListener)
         recorded_paths = _stub_from_wave_file(monkeypatch)
