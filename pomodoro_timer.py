@@ -20,12 +20,9 @@ logger.addHandler(stream_handler)
 
 def update_progress_bar(progress, total, bar_length=50):
     fraction = progress / total
-    arrow = int(fraction * bar_length - 1) * "#" + ">"
-    padding = (bar_length - len(arrow)) * " "
-    message = (
-        f"\rProgress: [{'#' * int(fraction * bar_length)}{padding}] "
-        f"{int(fraction * 100)}%"
-    )
+    filled = int(fraction * bar_length)
+    padding = (bar_length - filled) * " "
+    message = f"\rProgress: [{'#' * filled}{padding}] {int(fraction * 100)}%"
     sys.stdout.write(message)
     sys.stdout.flush()
 

@@ -50,7 +50,7 @@ class TestUpdateProgressBar:
         captured = capsys.readouterr()
         assert (
             captured.out
-            == "\rProgress: [                                                 ] 0%"
+            == "\rProgress: [                                                  ] 0%"
         )
 
 
