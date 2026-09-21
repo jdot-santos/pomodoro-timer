@@ -19,7 +19,7 @@ stream_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(stream_handler)
 
 
-def update_progress_bar(progress: int, total: int, bar_length: int = 50) -> None:
+def update_progress_bar(progress: float, total: float, bar_length: int = 50) -> None:
     fraction = progress / total
     filled = int(fraction * bar_length)
     padding = (bar_length - filled) * " "
@@ -46,11 +46,36 @@ def run_pomodoro(duration: int, timer_type: str) -> None:
     listener.start()
 
     try:
-        for second in range(total_seconds, 0, -1):
-            while paused:
-                time.sleep(0.1)
-            update_progress_bar(total_seconds - second, total_seconds)
-            time.sleep(1)
+        # Elapsed time comes from the clock, never from counting iterations:
+        # time.sleep only guarantees a minimum, so 1500 ticks of "one second"
+        # always add up to more than 25 minutes. monotonic rather than time()
+        # because it cannot jump backwards on an NTP or DST adjustment.
+        started_at = time.monotonic()
+        paused_seconds = 0.0
+
+        while True:
+            elapsed = time.monotonic() - started_at - paused_seconds
+            remaining = total_seconds - elapsed
+            # Expiry is checked before the pause below, on purpose: once the
+            # time has been served it is owed, so a pause arriving at that
+            # instant does not hold a finished session open.
+            if remaining <= 0:
+                break
+
+            update_progress_bar(elapsed, total_seconds)
+
+            if paused:
+                paused_at = time.monotonic()
+                while paused:
+                    time.sleep(0.1)
+                paused_seconds += time.monotonic() - paused_at
+                continue
+
+            # Clamp so the last tick lands on the end rather than past it.
+            time.sleep(min(1.0, remaining))
+
+        if total_seconds:
+            update_progress_bar(total_seconds, total_seconds)
         listener.stop()
 
         if timer_type == "work" or timer_type == "w":
