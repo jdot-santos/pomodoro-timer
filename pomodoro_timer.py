@@ -10,6 +10,14 @@ from pynput import keyboard
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 
+# Micro-breaks are meant to land every 30 minutes, so a session shorter than
+# this would nudge more often than intended -- and a prompt that fires when it
+# shouldn't is a prompt you learn to skip.
+MICRO_BREAK_MIN_MINUTES = 20
+MICRO_BREAK_REMINDER = (
+    "  60-second micro-break — stand up and move.\n  Log it:  /micro-break <letter>"
+)
+
 paused = False
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -78,12 +86,22 @@ def run_pomodoro(duration: int, timer_type: str) -> None:
             update_progress_bar(total_seconds, total_seconds)
         listener.stop()
 
+        # Who gets reminded is decided here, not branch by branch below: a
+        # timer type added later reminds by default, and excluding one is an
+        # edit to this condition rather than a line someone forgets to add.
+        # Break timers are the exclusion -- a break timer *is* the break.
+        reminder = (
+            f"\n{MICRO_BREAK_REMINDER}\n"
+            if duration >= MICRO_BREAK_MIN_MINUTES and timer_type not in ("break", "b")
+            else ""
+        )
+
         if timer_type == "work" or timer_type == "w":
-            logger.info("\nTime's up! Take a break.\n")
+            logger.info(f"\nTime's up! Take a break.\n{reminder}")
         elif timer_type == "break" or timer_type == "b":
-            logger.info("\nBreak is over, get back to work!\n")
+            logger.info(f"\nBreak is over, get back to work!\n{reminder}")
         elif timer_type == "journal" or timer_type == "j":
-            logger.info("\nJournaling complete\n")
+            logger.info(f"\nJournaling complete\n{reminder}")
     except KeyboardInterrupt:
         listener.stop()
         logger.error("\nPomodoro interrupted.\n")
