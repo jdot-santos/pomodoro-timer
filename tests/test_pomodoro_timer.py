@@ -11,6 +11,9 @@ TestPlayCompletedSoundPathResolution covers docs/specs/wav-asset-path-resolution
 WAV asset paths must resolve relative to the module's own location, not the
 process's current working directory.
 
+TestMicroBreakReminder covers docs/specs/micro-break-suggestion.md: a work
+or journal session of 20 minutes or more ends with a micro-break reminder.
+
 TestMainEndToEnd exercises the real wiring of main() -> run_pomodoro() ->
 play_completed_sound(), with only the true hardware/timing boundaries
 stubbed (the pynput keyboard listener, audio playback) -- everything else
@@ -446,3 +449,131 @@ class TestRunPomodoroTiming:
         assert clock.sleeps == []
         assert clock.elapsed == 0
         assert "Progress" not in capsys.readouterr().out
+
+
+REMINDER = (
+    "  60-second micro-break — stand up and move.\n  Log it:  /micro-break <letter>"
+)
+
+
+class TestMicroBreakReminder:
+    """Covers docs/specs/micro-break-suggestion.md -- a work or journal
+    session of 20+ minutes ends with a micro-break reminder; everything
+    shorter, and every break timer, is unchanged.
+
+    These read caplog rather than capsys: the module's StreamHandler captured
+    sys.stdout at import time, so the completion messages never reach the
+    stdout object capsys swaps in.
+    """
+
+    def test_long_work_session_reminds_after_the_completion_message(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(25, "work")
+
+        assert "Time's up! Take a break." in caplog.text
+        assert REMINDER in caplog.text
+        assert caplog.text.index("Time's up! Take a break.") < caplog.text.index(
+            REMINDER
+        )
+
+    def test_long_journal_session_reminds_after_the_completion_message(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(25, "journal")
+
+        assert "Journaling complete" in caplog.text
+        assert REMINDER in caplog.text
+        assert caplog.text.index("Journaling complete") < caplog.text.index(REMINDER)
+
+    def test_reminder_renders_in_full_beneath_the_completion_message(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Pins the exact shape, blank line included -- the substring checks
+        # above would still pass if the spacing collapsed.
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(25, "work")
+
+        assert caplog.messages == [
+            "\nTime's up! Take a break.\n"
+            "\n"
+            "  60-second micro-break \u2014 stand up and move.\n"
+            "  Log it:  /micro-break <letter>\n"
+        ]
+
+    def test_twenty_minute_session_is_on_the_reminding_side_of_the_floor(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The boundary is inclusive: 20 reminds, 19 does not.
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(20, "work")
+
+        assert REMINDER in caplog.text
+
+    def test_nineteen_minute_session_is_on_the_silent_side_of_the_floor(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # 19 and 20 are the pair that pin the floor as inclusive; either one
+        # alone leaves a >= / > swap undetected.
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(19, "work")
+
+        assert REMINDER not in caplog.text
+
+    def test_short_session_prints_the_existing_message_unchanged(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(15, "work")
+
+        assert "Time's up! Take a break." in caplog.text
+        assert "micro-break" not in caplog.text
+
+    def test_break_timer_never_reminds(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # A break timer is the break; nudging at the end of one is noise.
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(30, "break")
+
+        assert "Break is over, get back to work!" in caplog.text
+        assert "micro-break" not in caplog.text
+
+    def test_short_form_aliases_follow_the_same_rules(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(25, "w")
+        pomodoro_timer.run_pomodoro(25, "j")
+        pomodoro_timer.run_pomodoro(25, "b")
+
+        assert caplog.text.count(REMINDER) == 2
+
+    def test_zero_duration_session_is_silent(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # --d 0 is below the floor, so the end-to-end test's output is untouched.
+        _install_clock(monkeypatch, _FakeClock())
+        caplog.set_level(logging.INFO, logger="pomodoro_timer")
+
+        pomodoro_timer.run_pomodoro(0, "work")
+
+        assert "micro-break" not in caplog.text

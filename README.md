@@ -5,6 +5,8 @@
 - configurable pomodoro timer
 - ability to pause the timer and continue using the F1 key
 - 3 modes with 3 different sounds when complete: break, work, and journal
+- a 60-second micro-break reminder after work and journal sessions of 20 minutes
+  or more — see `docs/specs/micro-break-suggestion.md` for why the floor exists
 
 ## Development
 
