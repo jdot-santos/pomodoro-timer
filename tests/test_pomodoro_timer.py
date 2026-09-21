@@ -19,6 +19,7 @@ stubbed (the pynput keyboard listener, audio playback) -- everything else
 
 import logging
 import pathlib
+from collections.abc import Callable
 
 import pytest
 
@@ -274,3 +275,174 @@ class TestMainEndToEnd:
         pomodoro_timer.main()
 
         assert recorded_paths == [_expected_wav_path("tabla_loop.wav")]
+
+
+class _FakeClock:
+    """Replaces time.monotonic and time.sleep so a 25-minute session runs
+    instantly and deterministically.
+
+    sleep() advances the clock instead of blocking. `overshoot` adds extra
+    time to every sleep, simulating the real behaviour that time.sleep
+    guarantees a *minimum* duration -- which is the whole cause of the drift
+    in docs/specs/wall-clock-timer.md.
+
+    on_sleep, if set, runs after each sleep and can flip pomodoro_timer.paused
+    to simulate the keyboard listener thread.
+    """
+
+    def __init__(self, overshoot: float = 0.0, max_sleeps: int = 100_000) -> None:
+        self.now = 1000.0
+        self.start = 1000.0
+        self.overshoot = overshoot
+        self.sleeps: list[float] = []
+        self.max_sleeps = max_sleeps
+        self.on_sleep: Callable[[_FakeClock], None] | None = None
+        self.pause_started = 0.0
+
+    @property
+    def elapsed(self) -> float:
+        return self.now - self.start
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        # Guard: a wrong implementation can loop forever, and a hung test
+        # suite is far worse to debug than a failing assertion.
+        assert len(self.sleeps) <= self.max_sleeps, (
+            f"exceeded {self.max_sleeps} sleeps -- implementation is not terminating"
+        )
+        self.now += seconds + self.overshoot
+        if self.on_sleep is not None:
+            self.on_sleep(self)
+
+
+def _install_clock(monkeypatch: pytest.MonkeyPatch, clock: _FakeClock) -> None:
+    """Point the module at the fake clock and stub the keyboard listener."""
+    monkeypatch.setattr(pomodoro_timer.time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(pomodoro_timer.time, "sleep", clock.sleep)
+    monkeypatch.setattr(pomodoro_timer.keyboard, "Listener", _StubKeyboardListener)
+    monkeypatch.setattr(pomodoro_timer, "paused", False)
+
+
+def _pause_once(at: float, for_seconds: float) -> Callable[[_FakeClock], None]:
+    """Build an on_sleep hook that pauses exactly once.
+
+    Pauses when the session reaches `at` seconds elapsed, holds for
+    `for_seconds`, then releases and never fires again. The one-shot guard
+    matters: without it the hook re-pauses the moment it releases.
+    """
+    started: list[float] = []
+    done: list[bool] = []
+
+    def hook(clock: _FakeClock) -> None:
+        if done:
+            return
+        if not started:
+            if clock.elapsed >= at:
+                pomodoro_timer.paused = True
+                started.append(clock.now)
+        elif clock.now - started[0] >= for_seconds:
+            pomodoro_timer.paused = False
+            done.append(True)
+
+    return hook
+
+
+class TestRunPomodoroTiming:
+    """Covers docs/specs/wall-clock-timer.md -- the countdown must measure
+    elapsed time rather than counting iterations.
+    """
+
+    def test_session_lasts_the_requested_duration(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        clock = _FakeClock()
+        _install_clock(monkeypatch, clock)
+
+        pomodoro_timer.run_pomodoro(25, "work")
+
+        assert clock.elapsed == pytest.approx(25 * 60, abs=1)
+
+    def test_slow_ticks_do_not_extend_the_session(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Every sleep overruns by 100ms, as a real time.sleep does by some
+        # margin. Counting iterations turns 1500 ticks into 1650 seconds;
+        # measuring elapsed time still ends at 1500.
+        clock = _FakeClock(overshoot=0.1)
+        _install_clock(monkeypatch, clock)
+
+        pomodoro_timer.run_pomodoro(25, "work")
+
+        assert clock.elapsed == pytest.approx(25 * 60, abs=1)
+
+    def test_final_progress_bar_reaches_one_hundred_percent(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        clock = _FakeClock()
+        _install_clock(monkeypatch, clock)
+
+        pomodoro_timer.run_pomodoro(1, "work")
+
+        bars = [
+            line for line in capsys.readouterr().out.split("\r") if "Progress" in line
+        ]
+        assert bars, "expected at least one progress bar render"
+        assert "100%" in bars[-1]
+
+    def test_paused_time_does_not_count_toward_the_session(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        clock = _FakeClock()
+        _install_clock(monkeypatch, clock)
+
+        clock.on_sleep = _pause_once(at=60.0, for_seconds=10.0)
+
+        pomodoro_timer.run_pomodoro(5, "work")
+
+        # 5 minutes of work plus a 10-second pause that should not be counted.
+        assert clock.elapsed == pytest.approx(5 * 60 + 10, abs=1.5)
+
+    def test_session_cannot_complete_while_still_paused(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        clock = _FakeClock()
+        _install_clock(monkeypatch, clock)
+
+        # Pause with 10 seconds left and hold well past the natural end.
+        clock.on_sleep = _pause_once(at=50.0, for_seconds=60.0)
+
+        pomodoro_timer.run_pomodoro(1, "work")
+
+        # A 60-second session paused for 60 seconds takes about 120 seconds,
+        # and must not have completed at the 60-second mark.
+        assert clock.elapsed == pytest.approx(120, abs=2)
+
+    def test_zero_duration_returns_without_sleeping_or_rendering(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        clock = _FakeClock()
+        _install_clock(monkeypatch, clock)
+
+        pomodoro_timer.run_pomodoro(0, "work")
+
+        assert clock.sleeps == []
+        assert clock.elapsed == 0
+        assert "Progress" not in capsys.readouterr().out
+
+    def test_zero_duration_exits_immediately_even_if_already_paused(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # There is no session to pause, so a pause flag set before the call
+        # must not hold a zero-length session open.
+        clock = _FakeClock()
+        _install_clock(monkeypatch, clock)
+        monkeypatch.setattr(pomodoro_timer, "paused", True)
+
+        pomodoro_timer.run_pomodoro(0, "work")
+
+        assert clock.sleeps == []
+        assert clock.elapsed == 0
+        assert "Progress" not in capsys.readouterr().out
