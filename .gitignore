@@ -163,3 +163,5 @@ cython_debug/
 # Self generated documentation (orientation notes, not part of the codebase)
 ONBOARDING.md
 CODEBASE-NOTES.md
+
+.claude/settings.local.json
